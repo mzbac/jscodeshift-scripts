@@ -1,0 +1,66 @@
+// jscodeshift can take a parser, like "babel", "babylon", "flow", "ts", or "tsx"
+// Read more: https://github.com/facebook/jscodeshift#parser
+export const parser = 'tsx';
+
+// Press ctrl+space for code completion
+export default function transformer(file, api) {
+  const j = api.jscodeshift;
+
+  j(file.source)
+    .find(j.ExportNamedDeclaration)
+    .forEach((path) => {
+      //console.log(path.value.declaration.declarations[0].id.name)
+      console.log(
+        path.value.declaration.declarations[0].init.params[0].properties.forEach(
+          (p) => {
+            console.log(p.value.name);
+          },
+        ),
+      );
+    })
+    .toSource();
+
+  // get jsx element has the spread props
+  j(file.source)
+    .find(j.JSXOpeningElement)
+    .forEach((path) => {
+      // find jsx element name
+      console.log(path.value.name.name);
+
+      j(path)
+        .find(j.JSXSpreadAttribute)
+        .forEach((p) => {
+          console.log(p);
+          // save the spread prop name
+
+          j(p).remove();
+        });
+    })
+    .find(j.JSXElement)
+    // Find all components called button
+    .filter(
+      (path) => path.value.openingElement.name.name === 'Foo',
+    )
+    .forEach((element) => {
+      const newComponent = j.jsxElement(
+        j.jsxOpeningElement(
+          element.node.openingElement.name,
+          [
+            ...element.node.openingElement.attributes,
+            j.jsxAttribute(
+              j.jsxIdentifier('disabled'),
+              j.jsxExpressionContainer(j.identifier('a.b')),
+            ),
+          ],
+          element.node.openingElement.selfClosing,
+        ),
+        element.node.closingElement,
+        element.node.children,
+      );
+
+      // Replace our original component with our modified one
+      j(element).replaceWith(newComponent)
+    });
+
+  // https://www.codeshiftcommunity.com/docs/react
+}
